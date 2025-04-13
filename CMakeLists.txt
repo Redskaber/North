@@ -1,120 +1,178 @@
+# CMakeLists.txt
 cmake_minimum_required(VERSION 3.20)
 project(
     North 
     LANGUAGES C
     VERSION 0.1.0 
-    DESCRIPTION "A base-c impl self compiler instance."
+    DESCRIPTION "Self-compiling C compiler implementation"
 )
 
-# 编译选项
+#----------------------------------------
+# 基础配置
+#----------------------------------------
 set(CMAKE_C_STANDARD 17)
-set(LLVM_DIR "/usr/lib/llvm-17/lib/cmake/llvm")
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# 目录结构
-set(PROJECT_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set(PROJECT_INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+#----------------------------------------
+# 项目结构
+#----------------------------------------
+set(PROJECT_SRC_DIR src)
+set(PROJECT_INC_DIR include)
+set(MAIN_SOURCE_FILE ${PROJECT_SRC_DIR}/north.c)
 
-# 主程序源文件（排除测试文件）
-file(GLOB_RECURSE MAIN_SOURCES
-    "${PROJECT_SRC_DIR}/*.c"
-    EXCLUDE
-    "${PROJECT_SRC_DIR}/test/*.c"
-)
+#----------------------------------------
+# 输出目录配置
+#----------------------------------------
+if(NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
+endif()
 
+foreach(TYPE IN ITEMS ARCHIVE LIBRARY RUNTIME)
+    foreach(CONFIG IN LISTS CMAKE_CONFIGURATION_TYPES)
+        string(TOUPPER "${CONFIG}" CONFIG_UPPER)
+        set(CMAKE_${TYPE}_OUTPUT_DIRECTORY_${CONFIG_UPPER}
+            "${CMAKE_BINARY_DIR}/output/${CONFIG}"
+            CACHE PATH "Output directory for ${TYPE}" FORCE
+        )
+    endforeach()
+endforeach()
 
-# 主可执行目标
-add_executable(${PROJECT_NAME} ${MAIN_SOURCES})
-
-# 头文件包含路径: 只能在可执对象之后时有效
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${PROJECT_INC_DIR}
-    # ${PROJECT_SRC_DIR}
-)
-
-
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    ${LLVM_LIBS}
-    ${Zstd_LIBRARIES}
-    ${LibEdit_LIBRARIES}
-    ${CURL_LIBRARIES}
-    atomic
-    ffi
-    curses
-    tinfo
-    xml2
-    pthread  # 确保POSIX线程支持
-
-)
-
-
-target_compile_options(${PROJECT_NAME} PRIVATE
-    -Wall              # 启用所有警告
-    -Werror            # 将警告转为错误
-    -Wextra            # 启用所有扩展警告
-    -O3                # 最优化
-    -mcx16             # 启用 CMPXCHG16B 指令
-    -march=native      # 针对本地 CPU 优化
-)
-
-
-
-# 测试配置
+#----------------------------------------
+# 组件开关
+#----------------------------------------
 option(UNIT_TESTING "Enable unit tests" OFF)
+option(BUILD_SHARED_LIBS "Build as shared library" OFF)
+
+#----------------------------------------
+# 编译器检查
+#----------------------------------------
+if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    if(CMAKE_C_COMPILER_VERSION VERSION_LESS 13)
+        message(FATAL_ERROR "Requires Clang/GCC >= 13 (found ${CMAKE_C_COMPILER_VERSION})")
+    endif()
+endif()
+
+#----------------------------------------
+# 依赖配置
+#----------------------------------------
+find_package(LLVM 17 REQUIRED COMPONENTS core support analysis)
+find_package(LibEdit REQUIRED)
+find_package(CURL REQUIRED)
+
+#----------------------------------------
+# 核心库配置
+#----------------------------------------
+file(GLOB_RECURSE CORE_SOURCES
+    "${PROJECT_SRC_DIR}/core/*.c"
+    "${PROJECT_SRC_DIR}/core/*.h"
+)
+
+add_library(north_core STATIC ${CORE_SOURCES})
+
+if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    # sanitizer link
+    target_link_options(north_core PRIVATE
+        $<$<CONFIG:Debug>:-fsanitize=address,undefined>
+        $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
+    )
+    
+    # sanitizer runtime
+    target_link_libraries(north_core PUBLIC
+        $<$<CONFIG:Debug>:-lasan -lubsan>
+        ${CMAKE_DL_LIBS} 
+    )
+endif()
+
+target_include_directories(north_core PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/core>
+    $<INSTALL_INTERFACE:include>
+    ${LLVM_INCLUDE_DIRS}
+)
+
+target_compile_definitions(north_core PRIVATE
+    $<$<BOOL:${UNIT_TESTING}>:UNIT_TESTING=1>
+)
+
+target_link_libraries(north_core PUBLIC
+    ${LLVM_LIBS}
+    LibEdit::LibEdit
+    CURL::libcurl
+    atomic pthread curses tinfo xml2 ffi
+)
+
+target_compile_options(north_core PRIVATE
+    $<$<CONFIG:Debug>:-O0 -g3 -fsanitize=address,undefined>
+    $<$<CONFIG:Release>:-O3 -DNDEBUG>
+    -Wall
+    -Wextra
+    -Werror
+    -march=native
+    -mcx16
+)
+
+#----------------------------------------
+# 主程序配置
+#----------------------------------------
+add_executable(north ${MAIN_SOURCE_FILE})
+target_link_libraries(north PRIVATE north_core)
+
+#----------------------------------------
+# 测试配置
+#----------------------------------------
 if(UNIT_TESTING)
-    # 测试源文件
-    file(GLOB TEST_SOURCES
-        test/token/*.c
-        src/token.c
-    )
-
-    # 测试可执行目标
-    add_executable(${PROJECT_NAME}_token_test ${TEST_SOURCES})
-
-    # 在 add_executable 之后添加：
-    set_target_properties(${PROJECT_NAME}_token_test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    target_include_directories(${PROJECT_NAME}_token_test PRIVATE
-        ${PROJECT_INC_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/test
-    )
-
-    target_compile_definitions(${PROJECT_NAME}_token_test PRIVATE
-        UNIT_TESTING=1
-    )
-
-    target_link_libraries(${PROJECT_NAME}_token_test PRIVATE
-        cmocka
-        ${Zstd_LIBRARIES}
-        ${LibEdit_LIBRARIES}
-        atomic
-    )
-
     enable_testing()
-    add_test(NAME ${PROJECT_NAME}_token_test 
-        COMMAND $<TARGET_FILE:${PROJECT_NAME}_token_test>)
-endif()                   
+    add_subdirectory(test)
+endif()
 
-# CCache加速配置
-set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+#----------------------------------------
+# 安装规则
+#----------------------------------------
+install(TARGETS north north_core
+    EXPORT NorthTargets
+    RUNTIME DESTINATION bin
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+)
 
+install(DIRECTORY include/ DESTINATION include)
 
-# # 清理旧构建
-# rm -rf build && mkdir build && cd build
+#----------------------------------------
+# 打包配置
+#----------------------------------------
+include(CMakePackageConfigHelpers)
 
-# # 配置项目（启用单元测试）
-# cmake -G Ninja -DUNIT_TESTING=ON -DCMAKE_BUILD_TYPE=Debug ..
-# # 显式构建测试目标
-# ninja North_token_test
-# # 验证可执行文件存在
-# ls -l bin/North_token_test
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/NorthConfig.cmake
+    INSTALL_DESTINATION lib/cmake/North
+)
 
-# # 方式一：直接运行测试程序
-# ./bin/North_token_test
-# # 方式二：通过ctest运行（需指定测试名）
-# ctest -R North_token_test --output-on-failure -V
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/NorthConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(EXPORT NorthTargets
+    FILE NorthTargets.cmake
+    DESTINATION lib/cmake/North
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/NorthConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/NorthConfigVersion.cmake
+    DESTINATION lib/cmake/North
+)
+
+#----------------------------------------
+# 编译加速
+#----------------------------------------
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ${CCACHE_PROGRAM})
+    message(STATUS "Using ccache: ${CCACHE_PROGRAM}")
+endif()
+
 

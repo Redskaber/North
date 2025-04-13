@@ -1,0 +1,4 @@
+get me some text:
+<|prompt|>
+<|assistant|>
+<|end|>

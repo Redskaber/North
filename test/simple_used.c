@@ -1,7 +1,11 @@
 #include <stdio.h> 
-#include "io.h"
+#include <stdlib.h>
+#include <stdbool.h>
 
-bool test_io() {
+#include <cmocka.h>
+#include "core/io.h"
+
+bool test_simple_call() {
     InputBuffer input;
     input_init(&input, "../../test.txt");       // bin
     ProcessResult result = process_buffer(input.buf[input.active_buf]);
@@ -17,6 +21,9 @@ bool test_io() {
     return true;    
 }
 
-int run_io() {
-    return test_io();
+int main(void) {
+    const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_simple_call)
+    };
+    return cmocka_run_group_tests(tests, NULL, NULL);
 }

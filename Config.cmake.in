@@ -1,0 +1,90 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+#---------------------------------------------------
+# 版本兼容性检查
+#---------------------------------------------------
+set(PACKAGE_VERSION "@PROJECT_VERSION@")
+set(PACKAGE_VERSION_COMPATIBLE TRUE)
+set(PACKAGE_VERSION_EXACT FALSE)
+
+if(PACKAGE_FIND_VERSION VERSION_EQUAL PACKAGE_VERSION)
+    set(PACKAGE_VERSION_EXACT TRUE)
+elseif(PACKAGE_FIND_VERSION VERSION_LESS PACKAGE_VERSION)
+    set(PACKAGE_VERSION_COMPATIBLE TRUE)
+else()
+    set(PACKAGE_VERSION_COMPATIBLE FALSE)
+endif()
+
+#---------------------------------------------------
+# 依赖链声明
+#---------------------------------------------------
+find_dependency(LLVM @LLVM_VERSION@ REQUIRED 
+    COMPONENTS core support analysis
+    HINTS "@LLVM_DIR@"
+    NO_CMAKE_FIND_ROOT_PATH
+)
+
+find_dependency(LibEdit REQUIRED)
+find_dependency(CURL REQUIRED)
+
+#---------------------------------------------------
+# 目标导入
+#---------------------------------------------------
+include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
+
+#---------------------------------------------------
+# 路径校验
+#---------------------------------------------------
+set_and_check(@PROJECT_NAME@_INCLUDE_DIR 
+    "${PACKAGE_PREFIX_DIR}/include"
+)
+set_and_check(@PROJECT_NAME@_LIB_DIR 
+    "${PACKAGE_PREFIX_DIR}/lib"
+)
+
+#---------------------------------------------------
+# 功能宏
+#---------------------------------------------------
+macro(@PROJECT_NAME@_enable_feature FEATURE)
+    if(NOT TARGET @PROJECT_NAME@::north_core)
+        message(FATAL_ERROR "Must find_package(@PROJECT_NAME@ REQUIRED) first")
+    endif()
+
+    if(FEATURE STREQUAL "LTO")
+        target_link_options(@PROJECT_NAME@::north_core INTERFACE 
+            $<$<CONFIG:Release>:-flto>
+        )
+    elseif(FEATURE STREQUAL "PGO")
+        target_compile_options(@PROJECT_NAME@::north_core INTERFACE 
+            $<$<CONFIG:Release>:-fprofile-generate=@PROJECT_NAME@_profdata>
+        )
+        target_link_options(@PROJECT_NAME@::north_core INTERFACE 
+            $<$<CONFIG:Release>:-fprofile-generate=@PROJECT_NAME@_profdata>
+        )
+    elseif(FEATURE STREQUAL "ASAN")
+        target_compile_options(@PROJECT_NAME@::north_core INTERFACE 
+            $<$<CONFIG:Debug>:-fsanitize=address,undefined -fno-omit-frame-pointer>
+        )
+        target_link_options(@PROJECT_NAME@::north_core INTERFACE 
+            $<$<CONFIG:Debug>:-fsanitize=address,undefined>
+        )
+    else()
+        message(WARNING "Unknown feature: ${FEATURE}")
+    endif()
+endmacro()
+
+#---------------------------------------------------
+# 组件验证
+#---------------------------------------------------
+check_required_components("@PROJECT_NAME@")
+
+#---------------------------------------------------
+# 导出变量（兼容旧版本）
+#---------------------------------------------------
+if(NOT TARGET @PROJECT_NAME@::core)
+    add_library(@PROJECT_NAME@::core ALIAS @PROJECT_NAME@::north_core)
+endif()
+
+

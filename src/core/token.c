@@ -173,17 +173,25 @@ Token* create_delim(Delimiter delim, bool is_open, Span span) {
 
 
 
+
 // 添加测试接口实现
 #ifdef UNIT_TESTING
-TokenBlock* test_get_pool_head(void) {
+#if defined(__GNUC__) || defined(__clang__)
+#define TEST_API __attribute__((visibility("default")))
+#elif defined(_MSC_VER)
+#define TEST_API __declspec(dllexport)
+#else
+#define TEST_API
+#endif
+TEST_API TokenBlock* test_get_pool_head(void) {
     return atomic_load_explicit(&pool_head, memory_order_acquire);
 }
 
-size_t test_get_total_allocated(void) {
+TEST_API size_t test_get_total_allocated(void) {
     return atomic_load_explicit(&total_allocated, memory_order_relaxed);
 }
 
-TaggerPointer test_get_free_list(void) {
+TEST_API TaggerPointer test_get_free_list(void) {
     return atomic_load_explicit(&free_list, memory_order_acquire);
 }
 

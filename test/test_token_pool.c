@@ -10,8 +10,8 @@
 #define OPS_PER_THREAD 10000
 #define MACRO_UNUSED(x) (void)(x)
 
-// 相对
-#include "test_token_pool.h"
+#include "test/test_token_pool.h"
+
 
 // ==============================================================
 /// @brief 基础功能测试::池初始化校验
@@ -197,9 +197,6 @@ int test_setup(void **state) {
     return 0;
 }
 
-
-
-#ifdef UNIT_TESTING
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup(test_pool_init, test_setup),
@@ -214,4 +211,3 @@ int main(void) {
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
-#endif
