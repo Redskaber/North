@@ -4,10 +4,12 @@ project(NorthTests LANGUAGES C)
 
 find_package(cmocka REQUIRED)
 
+
 #=============== 测试目标配置 ===============#
-add_executable(north_tests
-    test_token_pool.c
-    # 其他测试文件...
+add_executable(north_tests 
+    test_ib.c
+    test_token.c
+    test_north.c
 )
 
 target_compile_definitions(north_tests PRIVATE

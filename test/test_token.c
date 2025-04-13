@@ -1,16 +1,17 @@
 #include <stdio.h>
 #include <stddef.h> 
 #include <stdarg.h>
-#include <setjmp.h>
 #include <assert.h>
-#include <cmocka.h>
 #include <pthread.h>
+
+#include <setjmp.h>
+#include <cmocka.h>
 
 #define THREAD_NUM 4
 #define OPS_PER_THREAD 10000
 #define MACRO_UNUSED(x) (void)(x)
 
-#include "test/test_token_pool.h"
+#include "test/api/api_token.h"
 
 
 // ==============================================================
@@ -197,7 +198,7 @@ int test_setup(void **state) {
     return 0;
 }
 
-int main(void) {
+void entry_token(void** state) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup(test_pool_init, test_setup),
         cmocka_unit_test_setup(test_alloc_free_sequence, test_setup),
@@ -209,5 +210,5 @@ int main(void) {
         cmocka_unit_test_setup(test_cross_block_allocation, test_setup),
         cmocka_unit_test_setup(test_order_base, test_setup),
     };
-    return cmocka_run_group_tests(tests, NULL, NULL);
+    cmocka_run_group_tests(tests, NULL, NULL);
 }
