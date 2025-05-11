@@ -1,5 +1,5 @@
 #pragma once
-#include "core/token.h"
+#include "lexer/token.h"
 
 #ifdef __cplusplus
 extern "C" {

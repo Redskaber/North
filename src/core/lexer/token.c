@@ -10,7 +10,7 @@
 #include <stdalign.h>
 #include <stdint.h>
 
-#include "token.h"
+#include "lexer/token.h"
 
 
 
@@ -148,29 +148,60 @@ void token_free(Token* token) {
     ));
 }
 
-// 创建字面量Token
 Token* create_literal(Literal lit, Span span) {
     Token* token = token_alloc(Tk_Literal, span);
     token->data.literal = lit;
     return token;
 }
 
-
-// 创建标识符Token
 Token* create_ident(Ident ident, Span span) {
     Token* token = token_alloc(Tk_Ident, span);
     token->data.ident = ident;
     return token;
 }
 
-// 创建分隔符Token
 Token* create_delim(Delimiter delim, bool is_open, Span span) {
     Token* token = token_alloc(is_open ? Tk_OpenDelim : Tk_CloseDelim, span);
     token->data.delim.delim = delim;
     return token;
 }
 
+Token* create_operator(TokenKind op_type, Span span) {
+    assert(op_type >= Tk_Eq && op_type <= Tk_ShrEq);
+    Token* token = token_alloc(op_type, span);
+    return token;
+}
 
+Token* create_punctuation(TokenKind punct_type, Span span) {
+    assert(punct_type >= Tk_At && punct_type <= Tk_Question);
+    Token* token = token_alloc(punct_type, span);
+    return token;
+}
+
+Token* create_doc_comment(CommentKind kind, int attr_style, Symbol symbol, Span span) {
+    Token* token = token_alloc(Tk_DocComment, span);
+    token->data.doc_comment = (DocComment){kind, attr_style, symbol};
+    return token;
+}
+
+Token* create_lifetime(Symbol symbol, bool is_raw, Span span) {
+    Token* token = token_alloc(Tk_Lifetime, span);
+    token->data.ident = (Ident){symbol, is_raw, span};
+    return token;
+}
+
+Token* create_error_token(uint32_t error_code, const char* message, Span span) {
+    Token* token = token_alloc(Tk_Error, span);
+    token->data.literal = (Literal){
+        .kind = LIT_ERR,
+        .as.error = {error_code, strdup(message)}
+    };
+    return token;
+}
+
+Token* create_eof(Span span) {
+    return token_alloc(Tk_Eof, span);
+}
 
 
 

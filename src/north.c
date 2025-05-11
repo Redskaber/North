@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include "io.h"
-#include "token.h"
+#include "io/io.h"
+#include "lexer/token.h"
 
 int main() {
 

@@ -8,8 +8,15 @@ find_package(cmocka REQUIRED)
 #=============== 测试目标配置 ===============#
 add_executable(north_tests 
     test_ib.c
+    test_pool.c
     test_token.c
     test_north.c
+)
+
+target_include_directories(north_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/test      # 主测试头文件目录
+    ${CMAKE_SOURCE_DIR}/include/test/api  # API测试头文件
+    ${CMAKE_SOURCE_DIR}/include/test/sub  # 子模块测试头文件
 )
 
 target_compile_definitions(north_tests PRIVATE

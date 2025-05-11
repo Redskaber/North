@@ -16,7 +16,8 @@
 #include <stdatomic.h>
 
 #include "common.h"
-#include "symbol.h"
+#include "lexer/symbol.h"
+#include "lexer/nonterminal.h"
 
 // 架构自适应配置
 #if defined(__x86_64__) || defined(_M_X64)
@@ -43,8 +44,6 @@
 
 
 
-
-typedef struct Span { int start; int end; } Span;  // 源码位置
 typedef enum Delimiter {
     DELIM_PAREN,    // ()
     DELIM_BRACE,    // {}
@@ -160,15 +159,16 @@ typedef enum TokenKind {
     Tk_Error,
     Tk_Eof,             // End of file
 } TokenKind;
+typedef struct DocComment {
+    CommentKind kind;
+    int attr_style;
+    Symbol symbol;
+} DocComment;
 typedef union TokenData {
     struct { Delimiter delim; } delim;          // 分隔符
     Literal literal;                            // 字面量
     Ident ident;                                // 标识符
-    struct {
-        CommentKind kind;
-        int attr_style;
-        Symbol symbol;
-    } doc_comment;                              // 文档注释
+    DocComment doc_comment;                     // 文档注释
 } TokenData;
 typedef struct ALIGN_AS_CACHELINE Token {
     struct Token* next_free;    // 仅用于空闲链表   8 bytes
@@ -232,6 +232,13 @@ void token_free(Token* token);
 Token* create_literal(Literal lit, Span span);
 Token* create_ident(Ident ident, Span span);
 Token* create_delim(Delimiter delim, bool is_open, Span span);
+Token* create_operator(TokenKind op_type, Span span);
+Token* create_punctuation(TokenKind punct_type, Span span);
+Token* create_doc_comment(CommentKind kind, int attr_style, Symbol symbol, Span span);
+Token* create_lifetime(Symbol symbol, bool is_raw, Span span);
+Token* create_error_token(uint32_t error_code, const char* message, Span span);
+Token* create_eof(Span span);
+// Token* create_interpolated(Nonterminal nt, Span span);
 
 
 

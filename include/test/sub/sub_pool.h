@@ -3,11 +3,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "sub/sub_ib.h"
-#include "sub/sub_token.h"
-#include "sub/sub_pool.h"
-
+extern void entry_generic_pool(void**state);
 #ifdef __cplusplus
 }
 #endif

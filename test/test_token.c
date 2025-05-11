@@ -11,13 +11,13 @@
 #define OPS_PER_THREAD 10000
 #define MACRO_UNUSED(x) (void)(x)
 
-#include "test/api/api_token.h"
+#include "api/api_token.h"
 
 
 // ==============================================================
 /// @brief 基础功能测试::池初始化校验
 /// @param state 
-void test_pool_init(void **state) {
+static void test_pool_init(void **state) {
     MACRO_UNUSED(state);
     token_pool_init(TOKEN_POOL_BLOCK);
     TokenBlock* head = test_get_pool_head();
@@ -32,7 +32,7 @@ void test_pool_init(void **state) {
 // ===============================================================
 /// @brief 基础功能测试::单线程分配释放顺序性
 /// @param state 
-void test_alloc_free_sequence(void **state) {
+static void test_alloc_free_sequence(void **state) {
     MACRO_UNUSED(state);
     token_pool_init(TOKEN_POOL_BLOCK);
     Token *t1 = token_alloc(Tk_Ident, (Span){0,0});
@@ -52,7 +52,7 @@ void test_alloc_free_sequence(void **state) {
 // ===============================================================
 /// @brief 基础功能测试::内存对齐
 /// @param state 
-void test_memory_alignment(void **state) {
+static void test_memory_alignment(void **state) {
     MACRO_UNUSED(state);
     token_pool_init(TOKEN_POOL_BLOCK);
     Token *t = token_alloc(Tk_Ident, (Span){0,0});
@@ -64,7 +64,7 @@ void test_memory_alignment(void **state) {
 // ===============================================================
 /// @brief 边界条件测试::池耗尽时自动扩展
 /// @param state 
-void test_pool_expansion(void **state) {
+static void test_pool_expansion(void **state) {
     MACRO_UNUSED(state);
     token_pool_init(TOKEN_POOL_BLOCK);
     size_t initial_total = test_get_total_allocated();
@@ -78,7 +78,7 @@ void test_pool_expansion(void **state) {
 // ===============================================================
 /// @brief 边界条件测试::双重释放检测
 /// @param state
-void test_double_free(void **state) {
+static void test_double_free(void **state) {
     MACRO_UNUSED(state);
     token_pool_init(TOKEN_POOL_BLOCK);
     Token *t = token_alloc(Tk_Ident, (Span){0,0});
@@ -91,12 +91,12 @@ void test_double_free(void **state) {
 // ===============================================================
 /// @brief 并发测试::多线程竞争测试
 /// @param state 
-struct thread_args {
+static struct thread_args {
     int id;
     Token **ptrs;
 };
 
-void* thread_alloc_free(void *arg) {
+static void* thread_alloc_free(void *arg) {
     struct thread_args *args = arg;
     for (int i=0; i<OPS_PER_THREAD; i++) {
         args->ptrs[i] = token_alloc(Tk_Ident, (Span){0,0});
@@ -105,7 +105,7 @@ void* thread_alloc_free(void *arg) {
     return NULL;
 }
 
-void test_concurrent_ops(void **state) {
+static void test_concurrent_ops(void **state) {
     MACRO_UNUSED(state);
     token_pool_init(TOKEN_POOL_BLOCK);
     pthread_t threads[THREAD_NUM];
@@ -132,7 +132,7 @@ void test_concurrent_ops(void **state) {
 //  ===============================================================
 /// @brief 异常场景测试::无效指针释放检测
 /// @param state 
-void test_invalid_free(void **state) {
+static void test_invalid_free(void **state) {
     MACRO_UNUSED(state);
     token_pool_init(TOKEN_POOL_BLOCK);
     Token invalid_token;
@@ -144,7 +144,7 @@ void test_invalid_free(void **state) {
 // ================================================================
 /// @brief 边界条件测试::跨Block分配检测
 /// @param state 
-void test_cross_block_allocation(void **state) {
+static void test_cross_block_allocation(void **state) {
     MACRO_UNUSED(state);
     token_pool_init(TOKEN_POOL_BLOCK);
     // 分配完第一个Block
@@ -161,7 +161,7 @@ void test_cross_block_allocation(void **state) {
     assert_int_equal(test_get_total_allocated(), 0);
 }
 // ================================================================
-void test_order_base(void **state) {
+static void test_order_base(void **state) {
     MACRO_UNUSED(state);
     token_pool_init(TOKEN_POOL_BLOCK);
     Token* t1 = token_alloc(Tk_And, (Span){0, 0});
@@ -192,7 +192,7 @@ void test_order_base(void **state) {
     printf("total_allocated: %lu\n", total_allocated);
 }
 
-int test_setup(void **state) {
+static int test_setup(void **state) {
     token_pool_init(0);
     *state = NULL;
     return 0;

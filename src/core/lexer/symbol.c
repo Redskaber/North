@@ -3,14 +3,14 @@
 #include <pthread.h>
 #include <stdatomic.h>
 
-#include "symbol.h"
+#include "lexer/symbol.h"
 
 
 // 预定义符号字符串数组
 static const char* predefined_strs[] = {
     #define SYM(id, str) [SYM_##id] = str,
     // #define SYMBOL_LIST
-    #include "symbol_defs.h"
+    #include "lexer/symbol_defs.h"
     SYMBOL_LIST
     #undef SYMBOL_LIST
     #undef SYM

@@ -4,7 +4,7 @@
 
 #include <setjmp.h>
 #include <cmocka.h>
-#include "core/io.h"
+#include "io/io.h"
 
 void test_simple_call(void** state) {
     (void)state;
